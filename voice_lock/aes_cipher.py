@@ -7,9 +7,23 @@ from copy import deepcopy
 class AESCipher(object):
     '''Class for easy AES cryptography'''
 
-    def __init__(self, key):
+    def __init__(self, key, iv=None):
         self.key = hashlib.sha256(key).digest()
-        self.iv = Random.new().read(AES.block_size)
+
+        if iv is None:
+            self.iv = Random.new().read(AES.block_size)
+        else:
+            self.iv = iv
+
+    def save_iv(self, path):
+        '''Save new init vector for decoding'''
+        with open(path, 'wb') as ivfile:
+            ivfile.write(self.iv)
+
+    def load_iv(self, path):
+        '''Load AES init vector for decoding'''
+        with open(path, 'rb') as ivfile:
+            self.iv = ivfile.read()
 
     def encrypt(self, raw):
         _cipher = AES.new(self.key, AES.MODE_CFB, self.iv)

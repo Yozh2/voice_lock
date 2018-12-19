@@ -1,4 +1,7 @@
+import glob
 import io
+import os.path as osp
+
 import numpy as np
 import math as m
 import matplotlib.pyplot as mpl
@@ -11,12 +14,20 @@ def encrypt_wav(file_in, file_out, cipher):
         data = f.read()
     cipher.save_data(data, file_out)
 
-def encrypt_wavs(dirname, n, cipher):
-    '''Use this code to encrypt `n` samples from the `dirname` directory using `cipher`'''
+def encrypt_wavs(dir_in, dir_out, cipher):
+    '''Use this code to encrypt samples from the `dir_in` using `cipher`
+    and store them in `dir_out`'''
 
-    for i in range(1, 9):
-        encrypt_wav(file_in='%d.wav' % i, file_out='%s/%d.wav.enc' % (dirname, i), cipher=cipher)
+    # Save new init vector for decoding
+    cipher.save_iv(osp.join(dir_out, 'iv'))
 
+    # Find sample paths
+    samples = glob.glob(osp.join(dir_in, '*.wav'))
+
+    # Ecntypt and store each sample
+    for sample in samples:
+        basename = osp.basename(sample) + '.enc'
+        encrypt_wav(file_in=sample, file_out=osp.join(dir_out, basename), cipher=cipher)
 
 ### ~~~ Waveform loading ~~~ ###
 
