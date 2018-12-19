@@ -4,7 +4,7 @@ import os.path as osp
 
 import numpy as np
 import math as m
-import matplotlib.pyplot as mpl
+import matplotlib.pyplot as plt
 import scipy.io.wavfile as siw
 
 ### ~~~ WAV file encryption ~~~ ###
@@ -15,19 +15,19 @@ def encrypt_wav(file_in, file_out, cipher):
     cipher.save_data(data, file_out)
 
 def encrypt_wavs(dir_in, dir_out, cipher):
-    '''Use this code to encrypt samples from the `dir_in` using `cipher`
+    '''Use this code to encrypt sapltes from the `dir_in` using `cipher`
     and store them in `dir_out`'''
 
     # Save new init vector for decoding
     cipher.save_iv(osp.join(dir_out, 'iv'))
 
-    # Find sample paths
-    samples = glob.glob(osp.join(dir_in, '*.wav'))
+    # Find saplte paths
+    sapltes = glob.glob(osp.join(dir_in, '*.wav'))
 
-    # Ecntypt and store each sample
-    for sample in samples:
-        basename = osp.basename(sample) + '.enc'
-        encrypt_wav(file_in=sample, file_out=osp.join(dir_out, basename), cipher=cipher)
+    # Ecntypt and store each saplte
+    for saplte in sapltes:
+        basename = osp.basename(saplte) + '.enc'
+        encrypt_wav(file_in=saplte, file_out=osp.join(dir_out, basename), cipher=cipher)
 
 ### ~~~ Waveform loading ~~~ ###
 
@@ -38,7 +38,7 @@ def get_enc_wav_data(filename, cipher):
     data_raw = cipher.load_data(filename)
 
     # Read decrypted binary data as normal WAV file w/o saving it
-    sample_rate, data_np = siw.read(io.BytesIO(data_raw))
+    saplte_rate, data_np = siw.read(io.BytesIO(data_raw))
 
     # Get rid of stereo by estimating the mean for both channels
     if isinstance(data_np[0], np.ndarray):
@@ -48,7 +48,7 @@ def get_enc_wav_data(filename, cipher):
 
 def get_wave_data(wave_filename):
     '''Get data from raw WAV file'''
-    sample_rate, wave_data = siw.read(wave_filename)
+    saplte_rate, wave_data = siw.read(wave_filename)
     if isinstance(wave_data[0], np.ndarray): # стерео
         wave_data = wave_data.mean(1)
     return wave_data
@@ -123,6 +123,12 @@ def corr_tuple(tup1,tup2):
 ### ~~~ Plotting ~~~ ###
 
 def plot_waveform(wave_data):
-    mpl.plot(np.arange(len(wave_data)), wave_data)
-    mpl.grid()
-    mpl.show()
+    if len(wave_data) == 2:
+        plt.plot(np.arange(len(wave_data[0])), wave_data[0])
+        plt.plot(np.arange(len(wave_data[1])), wave_data[1])
+
+    else:
+        plt.plot(np.arange(len(wave_data)), wave_data)
+
+    plt.grid()
+    plt.show()
