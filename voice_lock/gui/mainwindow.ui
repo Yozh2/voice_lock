@@ -52,27 +52,35 @@
    </property>
    <layout class="QVBoxLayout" name="verticalLayout_5">
     <item>
-     <layout class="QVBoxLayout" name="main_panel">
-      <item>
-       <widget class="QGraphicsView" name="waveform_view"/>
-      </item>
-      <item>
-       <widget class="QTextBrowser" name="console">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>300</height>
-         </size>
-        </property>
-       </widget>
-      </item>
-     </layout>
+     <widget class="QWidget" name="main_panel" native="true">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <layout class="QVBoxLayout" name="main_panel_layout">
+       <item>
+        <widget class="QTextBrowser" name="console">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+           <horstretch>0</horstretch>
+           <verstretch>1</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
     </item>
     <item>
      <widget class="QFrame" name="controls">
@@ -84,7 +92,7 @@
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
-        <widget class="QProgressBar" name="analysis_bar">
+        <widget class="QProgressBar" name="progress_bar">
          <property name="value">
           <number>24</number>
          </property>
