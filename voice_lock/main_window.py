@@ -21,7 +21,6 @@ from matplotlib.figure import Figure
 # import PyQt5
 from PyQt5.QtWidgets import QFileDialog
 from PyQt5 import uic
-from PyQt5.QtCore import pyqtSignal
 
 # local imports
 from .aes_cipher import AESCipher
@@ -33,8 +32,6 @@ self_wd = osp.abspath(osp.dirname(__file__))
 
 class MainWindow(QMainWindow):
     """MainWindow inherits QMainWindow"""
-
-    file_path_selected_signal = pyqtSignal(str)
 
     def __init__(self, parent=None):
         QMainWindow.__init__(self, parent)
@@ -49,7 +46,7 @@ class MainWindow(QMainWindow):
         # Connect signals to SLOTs
         self.ui.load_button.clicked.connect(self._load_button_clicked)
         self.ui.record_button.clicked.connect(self._record_button_clicked)
-        self.file_path_selected_signal.connect(self.compare)
+        self.ui.login_button.clicked.connect(self.compare)
 
         # Initialize AES Cipher
         self.cipher = AESCipher(key=b'Sixteen byte key')
@@ -73,6 +70,7 @@ class MainWindow(QMainWindow):
 
         # Load reference samples of the Master
         self.ref_samples = self.load_ref_samples(ref_dir=self.refs_path)
+        self.test_sample = None
 
         # Adjust status bar
         self.ui.progress_bar.setMaximum(len(self.ref_samples))
@@ -83,13 +81,6 @@ class MainWindow(QMainWindow):
 
     def __del__(self):
         self.ui = None
-
-    ### === Threading ===
-    def start_comparison_thread(self):
-        # Create the new thread. The target function is 'myThread'. The
-        # function we created in the beginning.
-        t = threading.Thread(name = 'myThread', target = myThread, args = (self.theCallbackFunc))
-        t.start()
 
     def log(self, text, debug=True):
         self.ui.console.append(text)
@@ -106,6 +97,11 @@ class MainWindow(QMainWindow):
         self.log(f'Reference samples loaded successfully')
 
         return ref_samples
+
+    def load_test_sample(self, test_path):
+        self.test_sample = make_wave(test_path)
+        self.display_waveform(self.test_sample)
+        self.log('Test sample waveform loaded.')
 
     def record_audio(self):
         pass
@@ -125,8 +121,7 @@ class MainWindow(QMainWindow):
             return
         else:
             self.log(f'Loading test sample {osp.basename(fpath_load)}')
-
-        self.file_path_selected_signal.emit(fpath_load)
+            self.load_test_sample(fpath_load)
 
     def _record_button_clicked(self):
         pass
@@ -134,18 +129,14 @@ class MainWindow(QMainWindow):
 
     # === Waveform processing and visualisation SLOTS ===
 
-    def compare(self, test_path):
-        test_sample = make_wave(test_path)
-        self.display_waveform(test_sample)
-        self.log('Test sample waveform loaded.')
-
+    def compare(self):
         conf = 0
-        for sample in tqdm(self.ref_samples):
-            conf += corr_tuple(test_sample, sample)
+        for sample in self.ref_samples:
+            conf += corr_tuple(self.test_sample, sample)
             self.ui.progress_bar.setValue(self.ui.progress_bar.value() + 1)
         conf /= len(self.ref_samples)
 
-        # conf = functools.reduce((lambda r, smp: r + corr_tuple(test_sample, smp)),
+        # conf = functools.reduce((lambda r, smp: r + corr_tuple(self.test_sample, smp)),
         #                        tqdm(self.ref_samples),
         #                        0) / len(self.ref_samples)
 
