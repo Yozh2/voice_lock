@@ -8,10 +8,12 @@ import glob
 import os
 import os.path as osp
 import sys
+import time
 
 # Third party imports
 import numpy as np
-from tqdm import tqdm
+from tqdm import tqdm, trange
+import sounddevice as sd
 
 # matplotlib imports
 from matplotlib.backends.backend_qt5agg import (
@@ -19,7 +21,8 @@ from matplotlib.backends.backend_qt5agg import (
 from matplotlib.figure import Figure
 
 # import PyQt5
-from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QProgressBar, QLabel
+from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5 import uic
 
 # local imports
@@ -42,11 +45,12 @@ class MainWindow(QMainWindow):
         self.wd = osp.abspath(osp.dirname(__file__))
         self.refs_path = osp.join(self.wd, 'data', 'ref_samples')
         self.test_path = osp.join(self.wd, 'data', 'test_samples')
+        self.recs_path = osp.join(self.wd, 'data', 'rec_samples')
 
         # Connect signals to SLOTs
         self.ui.load_button.clicked.connect(self._load_button_clicked)
         self.ui.record_button.clicked.connect(self._record_button_clicked)
-        self.ui.login_button.clicked.connect(self.compare)
+        self.ui.login_button.clicked.connect(self.onStart)
 
         # Initialize AES Cipher
         self.cipher = AESCipher(key=b'Sixteen byte key')
@@ -60,8 +64,6 @@ class MainWindow(QMainWindow):
         # Add plotting widget and toolbar to waveform_view
         self.ui.main_panel_layout.insertWidget(0, self.toolbar)
         self.ui.main_panel_layout.insertWidget(0, self.canvas)
-        widgets = list(self.ui.main_panel_layout.itemAt(i).widget().objectName() for i in range(self.ui.main_panel_layout.count()))
-        print(widgets)
 
         # Encrypt reference WAV samples
         # encrypt_wavs(dir_in=osp.join(self.wd, 'data/ref_samples_raw'),
@@ -72,9 +74,13 @@ class MainWindow(QMainWindow):
         self.ref_samples = self.load_ref_samples(ref_dir=self.refs_path)
         self.test_sample = None
 
-        # Adjust status bar
-        self.ui.progress_bar.setMaximum(len(self.ref_samples))
-        self.ui.progress_bar.setValue(0)
+        # Setup progress bar
+        self.ui.progress_bar.setRange(0, len(self.ref_samples))
+
+        # Setup QThread'ing procedure for comparison
+        self.compare_task = TaskThread()
+        self.compare_task.update_comparison.connect(self.onProgress)
+        self.compare_task.comparison_completed.connect(self.onFinish)
 
         # Set classification cut-off threshold
         self.threshold = 0.6
@@ -103,10 +109,6 @@ class MainWindow(QMainWindow):
         self.display_waveform(self.test_sample)
         self.log('Test sample waveform loaded.')
 
-    def record_audio(self):
-        pass
-
-
     # === QPushButton SLOTS ===
 
     def _load_button_clicked(self):
@@ -124,21 +126,31 @@ class MainWindow(QMainWindow):
             self.load_test_sample(fpath_load)
 
     def _record_button_clicked(self):
-        pass
+        fs=44100
+        duration=4
+        self.log('Recording Audio: 4s')
+        rec_wave = sd.rec(duration * fs, samplerate=fs, channels=1, dtype='float64')
+        sd.wait()
+        self.log('Recording finished')
+        self.log('Replay for testing...')
+        sd.play(rec_wave, fs)
+        sd.wait()
 
+        # Save waveform
+        recordings = len(glob.glob(osp.join(self.recs_path, 'recording*.wav')))
+        path = osp.join(self.recs_path, 'recording_%d.wav' % recordings)
+        with open(path, 'wb') as rec_file:
+            siw.write(rec_file, 44100, rec_wave)
+
+        self.log(f'Waveform is saved as {path}')
+        self.load_test_sample(path)
 
     # === Waveform processing and visualisation SLOTS ===
 
     def compare(self):
-        conf = 0
-        for sample in self.ref_samples:
-            conf += corr_tuple(self.test_sample, sample)
-            self.ui.progress_bar.setValue(self.ui.progress_bar.value() + 1)
-        conf /= len(self.ref_samples)
-
-        # conf = functools.reduce((lambda r, smp: r + corr_tuple(self.test_sample, smp)),
-        #                        tqdm(self.ref_samples),
-        #                        0) / len(self.ref_samples)
+        conf = functools.reduce((lambda r, smp: r + corr_tuple(self.test_sample, smp)),
+                               tqdm(self.ref_samples),
+                               0) / len(self.ref_samples)
 
         self.log(f'Confidence is {conf}')
 
@@ -171,6 +183,47 @@ class MainWindow(QMainWindow):
 
     def show_secret(self):
         self.log('Obama is gone')
+
+    ### ~~~ QThread'ing merhods for comparison
+
+    def onStart(self):
+        '''Start of comparison'''
+        self.ui.progress_bar.setValue(0)
+        self.compare_task.set_args(self.ref_samples, self.test_sample)
+        self.compare_task.start()
+
+    def onProgress(self, i):
+        '''Update progress bar for comparison'''
+        self.ui.progress_bar.setValue(i)
+
+    def onFinish(self, conf):
+        self.log(f'Confidence is {conf}')
+
+        if conf > self.threshold:
+            self.log('Greetings, Master')
+            self.show_secret()
+
+        else:
+            self.log("You are not Master to me.")
+            self.log('The secret remains hidden.')
+
+class TaskThread(QThread):
+    update_comparison = pyqtSignal(int)
+    comparison_completed = pyqtSignal(np.float64)
+
+    def set_args(self, ref_samples, test_sample):
+        self.ref_samples = ref_samples
+        self.test_sample = test_sample
+
+    def run(self):
+        conf = 0
+        for i in trange(len(self.ref_samples)):
+            conf += corr_tuple(self.test_sample, self.ref_samples[i])
+            self.update_comparison.emit(i+1)
+
+        conf /= len(self.ref_samples)
+        self.comparison_completed.emit(conf)
+
 
 #-----------------------------------------------------#
 if __name__ == '__main__':

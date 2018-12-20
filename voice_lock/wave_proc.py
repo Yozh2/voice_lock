@@ -6,6 +6,7 @@ import numpy as np
 import math as m
 import matplotlib.pyplot as plt
 import scipy.io.wavfile as siw
+import sounddevice as sd
 
 ### ~~~ WAV file encryption ~~~ ###
 
@@ -38,7 +39,7 @@ def get_enc_wav_data(filename, cipher):
     data_raw = cipher.load_data(filename)
 
     # Read decrypted binary data as normal WAV file w/o saving it
-    saplte_rate, data_np = siw.read(io.BytesIO(data_raw))
+    sample_rate, data_np = siw.read(io.BytesIO(data_raw))
 
     # Get rid of stereo by estimating the mean for both channels
     if isinstance(data_np[0], np.ndarray):
@@ -48,7 +49,7 @@ def get_enc_wav_data(filename, cipher):
 
 def get_wave_data(wave_filename):
     '''Get data from raw WAV file'''
-    saplte_rate, wave_data = siw.read(wave_filename)
+    sample_rate, wave_data = siw.read(wave_filename)
     if isinstance(wave_data[0], np.ndarray): # стерео
         wave_data = wave_data.mean(1)
     return wave_data
@@ -60,7 +61,6 @@ def make_enc_wave(filename, cipher):
 def make_wave(filename):
     '''Create appropriate waveform from raw .wav file'''
     return envelope(denoise(normalize(get_wave_data(filename))))
-
 
 ### ~~~ Waveform processing ~~~ ###
 
