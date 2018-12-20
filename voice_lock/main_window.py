@@ -14,6 +14,7 @@ import time
 import numpy as np
 from tqdm import tqdm, trange
 import sounddevice as sd
+from scipy.signal import hilbert
 
 # matplotlib imports
 from matplotlib.backends.backend_qt5agg import (
@@ -53,7 +54,8 @@ class MainWindow(QMainWindow):
         self.ui.login_button.clicked.connect(self.onStart)
 
         # Initialize AES Cipher
-        self.cipher = AESCipher(key=b'Sixteen byte key')
+        self.key = b'Sixteen byte key'
+        self.cipher = AESCipher(key=self.key)
         self.cipher.load_iv(osp.join(self.refs_path, 'iv'))
 
         # Setup matplotlib plotting widget
@@ -73,6 +75,9 @@ class MainWindow(QMainWindow):
         # Load reference samples of the Master
         self.ref_samples = self.load_ref_samples(ref_dir=self.refs_path)
         self.test_sample = None
+
+        # self.store_secret('EASY OTL 15')
+        # self.show_secret()
 
         # Setup progress bar
         self.ui.progress_bar.setRange(0, len(self.ref_samples))
@@ -127,7 +132,7 @@ class MainWindow(QMainWindow):
 
     def _record_button_clicked(self):
         fs=44100
-        duration=4
+        duration=1.5
         self.log('Recording Audio: 4s')
         rec_wave = sd.rec(duration * fs, samplerate=fs, channels=1, dtype='float64')
         sd.wait()
@@ -181,8 +186,18 @@ class MainWindow(QMainWindow):
         # refresh canvas
         self.canvas.draw()
 
+    def store_secret(self, secret):
+        cipher = AESCipher(key=self.key)
+        with open('secret.enc', 'wb') as secfile:
+            cipher.save_iv('secret_iv')
+            cipher.save_data(secret, 'secret')
+            self.log(f'Secret encrypted as {osp.join(osp.dirname(__file__), "secret")}')
+
     def show_secret(self):
-        self.log('Obama is gone')
+        self.secret_cipher = AESCipher(key=self.key)
+        self.secret_cipher.load_iv('secret_iv')
+        secret = self.secret_cipher.load_data('secret')
+        self.log(str(secret)[2:-1])
 
     ### ~~~ QThread'ing merhods for comparison
 
