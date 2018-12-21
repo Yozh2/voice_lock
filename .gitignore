@@ -104,3 +104,9 @@ ENV/
 # VS Code files
 .vscode
 .idea
+
+# recording samples
+voice_lock/data/rec_samples/*
+
+# original samples
+voice_lock/data/ref_samples_raw

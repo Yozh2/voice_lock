@@ -34,6 +34,8 @@ from .wave_proc import *
 self_wd = osp.abspath(osp.dirname(__file__))
 (Ui_MainWindow, QMainWindow) = uic.loadUiType(osp.join(self_wd, 'gui', 'mainwindow.ui'))
 
+KEY = b'Sixteen byte key'
+
 class MainWindow(QMainWindow):
     """MainWindow inherits QMainWindow"""
 
@@ -51,12 +53,8 @@ class MainWindow(QMainWindow):
         # Connect signals to SLOTs
         self.ui.load_button.clicked.connect(self._load_button_clicked)
         self.ui.record_button.clicked.connect(self._record_button_clicked)
+        self.ui.set_key_button.clicked.connect(self._set_key_button_clicked)
         self.ui.login_button.clicked.connect(self.onStart)
-
-        # Initialize AES Cipher
-        self.key = b'Sixteen byte key'
-        self.cipher = AESCipher(key=self.key)
-        self.cipher.load_iv(osp.join(self.refs_path, 'iv'))
 
         # Setup matplotlib plotting widget
         self.figure = Figure(figsize=(5, 3))
@@ -67,21 +65,6 @@ class MainWindow(QMainWindow):
         self.ui.main_panel_layout.insertWidget(0, self.toolbar)
         self.ui.main_panel_layout.insertWidget(0, self.canvas)
 
-        # Encrypt reference WAV samples
-        # encrypt_wavs(dir_in=osp.join(self.wd, 'data/ref_samples_raw'),
-        #              dir_out=osp.join(self.wd, 'data/ref_samples'),
-        #              cipher=self.cipher)
-
-        # Load reference samples of the Master
-        self.ref_samples = self.load_ref_samples(ref_dir=self.refs_path)
-        self.test_sample = None
-
-        # self.store_secret('EASY OTL 15')
-        # self.show_secret()
-
-        # Setup progress bar
-        self.ui.progress_bar.setRange(0, len(self.ref_samples))
-
         # Setup QThread'ing procedure for comparison
         self.compare_task = TaskThread()
         self.compare_task.update_comparison.connect(self.onProgress)
@@ -89,6 +72,41 @@ class MainWindow(QMainWindow):
 
         # Set classification cut-off threshold
         self.threshold = 0.6
+        self.test_sample = None
+
+        # Setup progress bar
+        self.ui.progress_bar.setRange(0, 1)
+        self.ui.progress_bar.setValue(0)
+
+    def _set_key_button_clicked(self):
+
+        # Get secret key
+        self.key = self.ui.key_line_edit.text().encode()
+        if len(self.key) % 16 != 0 or len(self.key) == 0:
+            self.log('Wrong secret key! Should be 16 bytes long!')
+            return
+
+        # Initialize AES Cipher
+        self.cipher = AESCipher(key=self.key)
+        self.cipher.load_iv(osp.join(self.refs_path, 'iv'))
+
+        # Encrypt reference WAV samples
+        # encrypt_wavs(dir_in=osp.join(self.wd, 'data/ref_samples_raw'),
+        #              dir_out=osp.join(self.wd, 'data/ref_samples'),
+        #              cipher=self.cipher)
+        # Store secret
+        # self.store_secret('EASY OTL 15')
+        # self.show_secret()
+
+        # Load reference samples of the Master
+        try:
+            self.ref_samples = self.load_ref_samples(ref_dir=self.refs_path)
+        except ValueError:
+            self.log('Can not decode reference samples! Key is incorrect!')
+            return
+
+        # Setup progress bar
+        self.ui.progress_bar.setRange(0, len(self.ref_samples))
 
     def __del__(self):
         self.ui = None
@@ -132,7 +150,7 @@ class MainWindow(QMainWindow):
 
     def _record_button_clicked(self):
         fs=44100
-        duration=1.5
+        duration=2
         self.log('Recording Audio: 4s')
         rec_wave = sd.rec(duration * fs, samplerate=fs, channels=1, dtype='float64')
         sd.wait()
@@ -194,9 +212,9 @@ class MainWindow(QMainWindow):
             self.log(f'Secret encrypted as {osp.join(osp.dirname(__file__), "secret")}')
 
     def show_secret(self):
-        self.secret_cipher = AESCipher(key=self.key)
-        self.secret_cipher.load_iv('secret_iv')
-        secret = self.secret_cipher.load_data('secret')
+        secret_cipher = AESCipher(key=self.key)
+        secret_cipher.load_iv('secret_iv')
+        secret = secret_cipher.load_data('secret')
         self.log(str(secret)[2:-1])
 
     ### ~~~ QThread'ing merhods for comparison
