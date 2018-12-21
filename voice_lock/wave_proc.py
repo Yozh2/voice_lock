@@ -64,6 +64,12 @@ def make_wave(filename):
 
 ### ~~~ Waveform processing ~~~ ###
 
+def trim(wave_data):
+    # Set all data below threshold as zeros
+    threshold = 0.001
+    wave_data[wave_data < threshold] = 0
+    return np.trim_zeros(wave_data)
+
 def normalize(wave_data):
     return wave_data / np.amax(wave_data)
 
