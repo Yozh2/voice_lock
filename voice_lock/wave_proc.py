@@ -66,7 +66,7 @@ def make_wave(filename):
 
 def trim(wave_data):
     # Set all data below threshold as zeros
-    threshold = 0.001
+    threshold = 0.01
     wave_data[wave_data < threshold] = 0
     return np.trim_zeros(wave_data)
 
